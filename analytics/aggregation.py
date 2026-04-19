@@ -1,9 +1,9 @@
 import pandas as pd
 
-def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
+def aggregate_daily(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
     grouped = df.groupby([
         "item_id",
-        pd.Grouper(key="datetime", freq="D"),
+        pd.Grouper(key="datetime", freq=freq),
         "operation"
     ])["quantity"].sum()
 
