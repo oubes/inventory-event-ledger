@@ -17,7 +17,8 @@ def main():
     df = to_dataframe(data)
 
     # OUTPUT LAYER
-    export_item_tables(df, "outputs")
-    
+    export_item_tables(df, "outputs\\days", freq="D") # Daily frequency
+    export_item_tables(df, "outputs\\months", freq="ME") # Monthly frequency
+
 if __name__ == "__main__":
     main()
