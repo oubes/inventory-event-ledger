@@ -183,5 +183,53 @@ def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
 
     return period_sales
 
+def classify_sales_stability(df: pd.DataFrame, freq="M", threshold=0.3):
+    df = df.copy()
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    
+    if freq == "ME":
+        freq = "M"
+
+    sell_df = df[df["operation"] == "SELL"].copy()
+    if sell_df.empty:
+        return pd.DataFrame()
+
+    sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
+
+    grouped = (
+        sell_df.groupby(["time_bucket", "item_id"])["quantity"]
+        .sum()
+        .reset_index()
+    )
+
+    result = []
+
+    for item_id, g in grouped.groupby("item_id"):
+        g = g.sort_values("time_bucket")
+
+        values = g["quantity"].astype(float).values
+
+        mean = values.mean() # type: ignore
+        std = values.std() # type: ignore
+
+        if mean == 0:
+            cv = 0
+        else:
+            cv = std / mean
+
+        if cv < threshold:
+            label = "stable"
+        else:
+            label = "volatile"
+
+        result.append({
+            "item_id": item_id,
+            "mean_sales": float(mean),
+            "std_sales": float(std),
+            "cv": float(cv),
+            "stability": label
+        })
+
+    return pd.DataFrame(result).sort_values("cv", ascending=False)
 def item_summary(df: pd.DataFrame, item_id: str):
     return aggregate_daily(df).loc[item_id]
