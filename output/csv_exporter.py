@@ -5,7 +5,8 @@ from analytics.aggregation import (
     aggregate_daily,
     aggregate_sales_by_time,
     sales_trend,
-    product_contribution
+    product_contribution,
+    detect_sales_periods
 )
 
 
@@ -21,6 +22,9 @@ def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> No
 
     product_contribution_result = product_contribution(df)
     
+    detect_sales_periods_result = detect_sales_periods(df, freq)
+    print(detect_sales_periods_result)
+        
     exported_files = 0
 
     for item_id in aggregated_by_time.index.get_level_values(0).unique():
