@@ -6,7 +6,8 @@ from analytics.aggregation import (
     aggregate_sales_by_time,
     sales_trend,
     product_contribution,
-    detect_sales_periods
+    detect_sales_periods,
+    classify_sales_stability
 )
 
 
@@ -22,8 +23,11 @@ def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> No
 
     product_contribution_result = product_contribution(df)
     
+    
     detect_sales_periods_result = detect_sales_periods(df, freq)
-    print(detect_sales_periods_result)
+    
+    classify_sales_stability_result = classify_sales_stability(df)
+    print(classify_sales_stability_result)
         
     exported_files = 0
 
