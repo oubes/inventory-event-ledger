@@ -138,5 +138,50 @@ def product_contribution(df: pd.DataFrame, freq="overall"):
 
     return grouped.sort_values(["time_bucket", "contribution"], ascending=[True, False])
 
+def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
+    df = df.copy()
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    
+    if freq == "ME":
+        freq = "M"
+
+    # SELL only
+    sell_df = df[df["operation"] == "SELL"].copy()
+    if sell_df.empty:
+        return pd.DataFrame()
+
+    sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
+
+    # total sales per period
+    period_sales = (
+        sell_df.groupby("time_bucket")["quantity"]
+        .sum()
+        .reset_index()
+        .sort_values("time_bucket")
+    )
+
+    values = period_sales["quantity"].astype(float)
+
+    mean = values.mean()
+    std = values.std() if values.std() != 0 else 1
+
+    # z-score
+    z_scores = (values - mean) / std
+
+    labels = []
+
+    for z in z_scores:
+        if z >= z_threshold:
+            labels.append("high_sales")
+        elif z <= -z_threshold:
+            labels.append("low_sales")
+        else:
+            labels.append("normal")
+
+    period_sales["z_score"] = z_scores
+    period_sales["regime"] = labels
+
+    return period_sales
+
 def item_summary(df: pd.DataFrame, item_id: str):
     return aggregate_daily(df).loc[item_id]
