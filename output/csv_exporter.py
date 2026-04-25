@@ -4,7 +4,8 @@ from pathlib import Path
 from analytics.aggregation import (
     aggregate_daily,
     aggregate_sales_by_time,
-    sales_trend
+    sales_trend,
+    product_contribution
 )
 
 
@@ -18,6 +19,8 @@ def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> No
 
     sales_by_trend = sales_trend(df, freq)
 
+    product_contribution_result = product_contribution(df)
+    
     exported_files = 0
 
     for item_id in aggregated_by_time.index.get_level_values(0).unique():
