@@ -1,7 +1,11 @@
 import pandas as pd
 from pathlib import Path
 
-from analytics.aggregation import aggregate_daily, aggregate_sales_by_time
+from analytics.aggregation import (
+    aggregate_daily,
+    aggregate_sales_by_time,
+    sales_trend
+)
 
 
 def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> None:
@@ -11,7 +15,8 @@ def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> No
     aggregated_by_time = aggregate_daily(df, freq)
 
     aggregated_by_selling = aggregate_sales_by_time(df, freq)
-    print(aggregated_by_selling)
+
+    sales_by_trend = sales_trend(df, freq)
 
     exported_files = 0
 
