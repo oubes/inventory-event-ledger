@@ -86,7 +86,7 @@ def sales_trend(df: pd.DataFrame, freq="M", threshold=0.0):
             else:
                 pct = (curr - prev) / prev
 
-            mom_change.append(float(pct))
+            mom_change.append(float(pct)) # type: ignore
 
             if pct > threshold:
                 mom_label.append("increase")
@@ -103,6 +103,40 @@ def sales_trend(df: pd.DataFrame, freq="M", threshold=0.0):
         }
 
     return result
+
+def product_contribution(df: pd.DataFrame, freq="overall"):
+    df = df.copy()
+    df["datetime"] = pd.to_datetime(df["datetime"])
+
+    # filter SELL only
+    sell_df = df[df["operation"] == "SELL"].copy()
+    if sell_df.empty:
+        return {}
+
+    # global contribution (default)
+    if freq == "overall":
+        total_sales = sell_df.groupby("item_id")["quantity"].sum()
+        grand_total = total_sales.sum()
+
+        result = total_sales.reset_index()
+        result.columns = ["item_id", "total_sales"]
+        result["contribution"] = result["total_sales"] / grand_total
+
+        return result.sort_values("contribution", ascending=False)
+
+    # time-based contribution
+    sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
+
+    grouped = (
+        sell_df.groupby(["time_bucket", "item_id"])["quantity"]
+        .sum()
+        .reset_index()
+    )
+
+    grouped["period_total"] = grouped.groupby("time_bucket")["quantity"].transform("sum")
+    grouped["contribution"] = grouped["quantity"] / grouped["period_total"]
+
+    return grouped.sort_values(["time_bucket", "contribution"], ascending=[True, False])
 
 def item_summary(df: pd.DataFrame, item_id: str):
     return aggregate_daily(df).loc[item_id]
