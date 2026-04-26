@@ -11,39 +11,72 @@ from analytics.aggregation import (
 )
 
 
-def export_item_tables(df: pd.DataFrame, output_dir: str, freq: str = "D") -> None:
-    output_path = Path(output_dir).resolve()
-    output_path.mkdir(parents=True, exist_ok=True)
+def _prepare_path(output_dir: str):
+    path = Path(output_dir).resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
-    aggregated_by_time = aggregate_daily(df, freq)
 
-    aggregated_by_selling = aggregate_sales_by_time(df, freq)
+def _write_grouped_csv(data: pd.DataFrame | dict[str, pd.DataFrame], output_path: Path, freq: str | None = None):
+    if isinstance(data, dict):
+        for item_id, item_df in data.items():
+            file_name = f"{item_id}.csv" if freq is None else f"{item_id}_{freq}.csv"
+            item_df.to_csv(output_path / file_name, index=False)
+        return
 
-    sales_by_trend = sales_trend(df, freq)
+    for item_id in data.index.get_level_values(0).unique():
+        item_df = data.loc[item_id].reset_index()
+        file_name = f"{item_id}.csv" if freq is None else f"{item_id}_{freq}.csv"
+        item_df.to_csv(output_path / file_name, index=False)
 
-    product_contribution_result = product_contribution(df)
-    
-    
-    detect_sales_periods_result = detect_sales_periods(df, freq)
-    
-    classify_sales_stability_result = classify_sales_stability(df)
-    print(classify_sales_stability_result)
-        
-    exported_files = 0
 
-    for item_id in aggregated_by_time.index.get_level_values(0).unique():
-        item_df = aggregated_by_time.loc[item_id].reset_index()
+def export_aggregated_by_time(df: pd.DataFrame, output_dir: str, freq: str):
+    output_path = _prepare_path(output_dir)
+    data = aggregate_daily(df, freq)
+    _write_grouped_csv(data, output_path, freq)
 
-        file_path = output_path / f"{item_id}_{freq}.csv"
 
-        item_df.to_csv(file_path, index=False)
+def export_aggregated_by_selling(df: pd.DataFrame, output_dir: str, freq: str):
+    output_path = _prepare_path(output_dir)
+    data = aggregate_sales_by_time(df, freq)
+    _write_grouped_csv(data, output_path, freq)
 
-        print(
-            f"[SAVED] item_id={item_id} | "
-            f"rows={len(item_df)} | "
-            f"path={file_path}"
-        )
 
-        exported_files += 1
+def export_sales_trend(df: pd.DataFrame, output_dir: str, freq: str):
+    output_path = _prepare_path(output_dir)
+    data = sales_trend(df, freq)
 
-    print(f"\n[DONE] Exported {exported_files} aggregated files → {output_path}")
+    cleaned = {}
+
+    for item_id, value in data.items():
+        # unwrap {"table": df}
+        if isinstance(value, dict) and "table" in value:
+            cleaned[item_id] = value["table"]
+        else:
+            cleaned[item_id] = value
+
+    _write_grouped_csv(cleaned, output_path, freq)
+
+
+def export_detect_sales_periods(df: pd.DataFrame, output_dir: str, freq: str):
+    output_path = _prepare_path(output_dir)
+    data = detect_sales_periods(df, freq)
+    _write_grouped_csv(data, output_path, freq)
+
+
+def export_product_contribution(df: pd.DataFrame, output_dir: str):
+    output_path = _prepare_path(output_dir)
+    data = product_contribution(df)
+
+    if isinstance(data, dict):
+        for item_id, item_df in data.items():
+            item_df.to_csv(output_path / f"{item_id}.csv", index=False)
+    else:
+        data.to_csv(output_path / "product_contribution.csv", index=False)
+
+
+def export_sales_stability(df: pd.DataFrame, output_dir: str):
+    output_path = _prepare_path(output_dir)
+    data = classify_sales_stability(df)
+
+    data.to_csv(output_path / "sales_stability.csv", index=False)
