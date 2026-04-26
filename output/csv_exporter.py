@@ -1,3 +1,4 @@
+# ---- Imports ---- #
 import pandas as pd
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from analytics.aggregation import (
     classify_sales_stability
 )
 
-
+# ---- Exporter Functions ---- #
 def _prepare_path(output_dir: str):
     path = Path(output_dir).resolve()
     path.mkdir(parents=True, exist_ok=True)
@@ -30,18 +31,21 @@ def _write_grouped_csv(data: pd.DataFrame | dict[str, pd.DataFrame], output_path
         item_df.to_csv(output_path / file_name, index=False)
 
 
+# ---- export by time ---- #
 def export_aggregated_by_time(df: pd.DataFrame, output_dir: str, freq: str):
     output_path = _prepare_path(output_dir)
     data = aggregate_daily(df, freq)
     _write_grouped_csv(data, output_path, freq)
 
 
+# ---- export by selling ---- #
 def export_aggregated_by_selling(df: pd.DataFrame, output_dir: str, freq: str):
     output_path = _prepare_path(output_dir)
     data = aggregate_sales_by_time(df, freq)
     _write_grouped_csv(data, output_path, freq)
 
 
+# ---- export sales trend ---- #
 def export_sales_trend(df: pd.DataFrame, output_dir: str, freq: str):
     output_path = _prepare_path(output_dir)
     data = sales_trend(df, freq)
@@ -58,12 +62,14 @@ def export_sales_trend(df: pd.DataFrame, output_dir: str, freq: str):
     _write_grouped_csv(cleaned, output_path, freq)
 
 
+# ---- export sales periods ---- #
 def export_detect_sales_periods(df: pd.DataFrame, output_dir: str, freq: str):
     output_path = _prepare_path(output_dir)
     data = detect_sales_periods(df, freq)
     _write_grouped_csv(data, output_path, freq)
 
 
+# ---- export product contribution ---- #
 def export_product_contribution(df: pd.DataFrame, output_dir: str):
     output_path = _prepare_path(output_dir)
     data = product_contribution(df)
@@ -75,6 +81,7 @@ def export_product_contribution(df: pd.DataFrame, output_dir: str):
         data.to_csv(output_path / "product_contribution.csv", index=False)
 
 
+# ---- export sales stability ---- #
 def export_sales_stability(df: pd.DataFrame, output_dir: str):
     output_path = _prepare_path(output_dir)
     data = classify_sales_stability(df)
