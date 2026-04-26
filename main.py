@@ -41,8 +41,8 @@ def main():
     export_detect_sales_periods(df, "outputs/periods/months", "ME")
 
     # overall (no freq)
-    export_product_contribution(df, "outputs/contribution/overall")
-    export_sales_stability(df, "outputs/stability/overall")
+    export_product_contribution(df, "outputs/contribution")
+    export_sales_stability(df, "outputs/stability")
 
 if __name__ == "__main__":
     main()
