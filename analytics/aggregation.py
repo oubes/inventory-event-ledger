@@ -108,23 +108,23 @@ def product_contribution(df: pd.DataFrame, freq="overall"):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
 
-    # filter SELL only
     sell_df = df[df["operation"] == "SELL"].copy()
     if sell_df.empty:
         return {}
 
-    # global contribution (default)
     if freq == "overall":
         total_sales = sell_df.groupby("item_id")["quantity"].sum()
         grand_total = total_sales.sum()
 
         result = total_sales.reset_index()
         result.columns = ["item_id", "total_sales"]
-        result["contribution"] = result["total_sales"] / grand_total
+
+        result["contribution"] = (
+            (result["total_sales"] / grand_total) * 100
+        ).round(2)
 
         return result.sort_values("contribution", ascending=False)
 
-    # time-based contribution
     sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
 
     grouped = (
@@ -134,7 +134,10 @@ def product_contribution(df: pd.DataFrame, freq="overall"):
     )
 
     grouped["period_total"] = grouped.groupby("time_bucket")["quantity"].transform("sum")
-    grouped["contribution"] = grouped["quantity"] / grouped["period_total"]
+
+    grouped["contribution"] = (
+        (grouped["quantity"] / grouped["period_total"]) * 100
+    ).round(2)
 
     return grouped.sort_values(["time_bucket", "contribution"], ascending=[True, False])
 
