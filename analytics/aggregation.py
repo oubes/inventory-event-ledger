@@ -1,6 +1,8 @@
+# ---- Imports ----
 import pandas as pd
-import numpy as np
 
+# -------------- Aggregation Functions --------------
+# ---- Daily Aggregation ----
 def aggregate_daily(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
     grouped = df.groupby([
         "item_id",
@@ -10,10 +12,7 @@ def aggregate_daily(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
 
     return grouped.unstack(fill_value=0)
 
-import pandas as pd
-
-import pandas as pd
-
+# ---- aggregate sales by time ----
 def aggregate_sales_by_time(df: pd.DataFrame, freq="M"):
     df = df.copy()
 
@@ -46,7 +45,8 @@ def aggregate_sales_by_time(df: pd.DataFrame, freq="M"):
 
     return tables
 
-
+ 
+# ---- Sales Trend Analysis ----
 def sales_trend(df: pd.DataFrame, freq="M", threshold=0.0):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
@@ -104,6 +104,7 @@ def sales_trend(df: pd.DataFrame, freq="M", threshold=0.0):
 
     return result
 
+# ---- Product Contribution ----
 def product_contribution(df: pd.DataFrame, freq="overall"):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
@@ -141,6 +142,7 @@ def product_contribution(df: pd.DataFrame, freq="overall"):
 
     return grouped.sort_values(["time_bucket", "contribution"], ascending=[True, False])
 
+# ---- Sales Period Detection ----
 def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
@@ -186,6 +188,7 @@ def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
 
     return period_sales
 
+# ---- Sales Stability ----
 def classify_sales_stability(df: pd.DataFrame, freq="M", threshold=0.3):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
@@ -234,5 +237,7 @@ def classify_sales_stability(df: pd.DataFrame, freq="M", threshold=0.3):
         })
 
     return pd.DataFrame(result).sort_values("cv", ascending=False)
+
+# ---- Item Summary ----
 def item_summary(df: pd.DataFrame, item_id: str):
     return aggregate_daily(df).loc[item_id]
