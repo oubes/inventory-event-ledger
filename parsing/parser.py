@@ -1,5 +1,7 @@
+# ---- Imports ---- #
 import datetime
 
+# ---- Parser Module ---- #
 def split_log_line(line: str) -> dict:
     parts = line.split(" ")
 
