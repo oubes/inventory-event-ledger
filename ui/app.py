@@ -5,7 +5,6 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 
-# ---------------- Path Fix ----------------
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from analytics.aggregation import (
@@ -14,30 +13,26 @@ from analytics.aggregation import (
     product_contribution,
     detect_sales_periods,
     classify_sales_stability,
-    item_summary,
     aggregate_daily
 )
 
-# ---------------- Config ----------------
 st.set_page_config(page_title="Sales Analytics Engine", layout="wide")
-st.title("📊 Sales Analytics Engine")
+st.title("Sales Analytics Engine")
 
 BASE_OUTPUT = Path("outputs")
 
-# ---------------- GRANULARITY MAP ----------------
 FREQ_MAP = {
     "D": "days",
     "M": "months"
 }
 
-# ---------------- LOAD FULL DATA ----------------
 def load_full_dataset():
     path = BASE_OUTPUT / "aggregated_selling"
 
     if not path.exists():
         return None
 
-    all_data = []
+    frames = []
 
     for sub in ["days", "months"]:
         sub_path = path / sub
@@ -46,17 +41,15 @@ def load_full_dataset():
             continue
 
         for file in sub_path.glob("*.csv"):
-            df_part = pd.read_csv(file)
+            df = pd.read_csv(file)
+            df["source_file"] = file.stem
+            df["granularity"] = sub
+            frames.append(df)
 
-            df_part["source_file"] = file.stem
-            df_part["granularity"] = sub
-
-            all_data.append(df_part)
-
-    if not all_data:
+    if not frames:
         return None
 
-    df = pd.concat(all_data, ignore_index=True)
+    df = pd.concat(frames, ignore_index=True)
 
     if "start_datetime" in df.columns:
         df["datetime"] = pd.to_datetime(df["start_datetime"], errors="coerce")
@@ -64,7 +57,6 @@ def load_full_dataset():
     return df
 
 
-# ---------------- LOADERS ----------------
 def load_dataset(category: str, subfolder: str):
     path = BASE_OUTPUT / category / subfolder
 
@@ -75,10 +67,7 @@ def load_dataset(category: str, subfolder: str):
     if not files:
         return None
 
-    return {
-        f.stem: pd.read_csv(f)
-        for f in sorted(files)
-    }
+    return {f.stem: pd.read_csv(f) for f in sorted(files)}
 
 
 def load_single_file(category: str, filename: str):
@@ -90,7 +79,6 @@ def load_single_file(category: str, filename: str):
     return pd.read_csv(path)
 
 
-# ---------------- FLATTEN DICT ----------------
 def flatten_dict(data: dict, group_col="__group__"):
     if not isinstance(data, dict):
         return data
@@ -109,10 +97,8 @@ def flatten_dict(data: dict, group_col="__group__"):
     return pd.concat(frames, ignore_index=True)
 
 
-# ---------------- PAGINATION ----------------
 def paginated_dataframe(df: pd.DataFrame, key: str):
     if df is None or len(df) == 0:
-        st.write("No data available")
         return
 
     total = len(df)
@@ -147,77 +133,12 @@ def paginated_dataframe(df: pd.DataFrame, key: str):
     st.dataframe(df.iloc[start:end], use_container_width=True)
 
 
-# ---------------- ULTRA CLEAN DATAFRAME SANITIZER ----------------
-def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    if not isinstance(df, pd.DataFrame):
-        return df
-
-    df = df.copy()
-
-    # 🔴 remove known noisy / leakage columns
-    noisy_cols = [
-        "operation",
-        "Unnamed: 0",
-        "index",
-        "level_0"
-    ]
-
-    for col in noisy_cols:
-        if col in df.columns:
-            df = df.drop(columns=[col])
-
-    # 🔴 fix column metadata artifacts
-    df.columns.name = None
-
-    # 🔴 reset index safely
-    df = df.reset_index(drop=True)
-
-    # 🔴 remove invalid numeric values
-    df = df.replace([float("inf"), float("-inf")], None)
-
-    return df
-
-
-# ---------------- RENDER ----------------
-def render(obj, key="table"):
-    if isinstance(obj, pd.DataFrame):
-        paginated_dataframe(obj, key=key)
-        return
-
-    if isinstance(obj, dict):
-        flat = flatten_dict(obj)
-
-        if flat is None:
-            st.warning("No valid data found")
-            return
-
-        if "__group__" in flat.columns:
-            groups = sorted(flat["__group__"].dropna().unique().tolist())
-
-            selected = st.selectbox(
-                "Select Group",
-                ["ALL"] + groups,
-                key=f"{key}_group"
-            )
-
-            if selected != "ALL":
-                flat = flat[flat["__group__"] == selected]
-
-        paginated_dataframe(flat, key=f"{key}_flat")
-        return
-
-    st.write(obj)
-
-
-# ---------------- DATA ----------------
 df = load_full_dataset()
 
 if df is None:
-    st.error("No data found in outputs/. Run pipeline first.")
     st.stop()
 
 
-# ---------------- SIDEBAR ----------------
 st.sidebar.header("Controls")
 
 analysis_type = st.sidebar.selectbox(
@@ -229,89 +150,65 @@ analysis_type = st.sidebar.selectbox(
         "Sales Trend",
         "Product Contribution",
         "Sales Period Detection",
-        "Sales Stability",
-        "Item Summary"
+        "Sales Stability"
     ]
 )
 
 
-# ---------------- FULL DATA ----------------
 if analysis_type == "Full Dataset":
-    st.subheader("📦 Full Dataset (All Outputs Combined)")
-    st.write(f"Rows: {len(df):,} | Columns: {len(df.columns)}")
-    paginated_dataframe(df, key="full")
+    st.write(f"{len(df)} rows")
+    paginated_dataframe(df, "full")
     st.stop()
 
 
-# ---------------- PREVIEW ----------------
-st.subheader("📊 Data Preview")
 st.dataframe(df.head(), use_container_width=True)
 
 st.divider()
 
 
-# ---------------- ANALYTICS ----------------
-
 if analysis_type == "Aggregate Daily":
-    st.subheader("📅 Daily Aggregation")
-    render(load_dataset("aggregated_time", "days"), key="daily")
+    data = load_dataset("aggregated_time", "days")
+    flat = flatten_dict(data)
+    paginated_dataframe(flat, "daily")
 
 elif analysis_type == "Aggregate Sales By Time":
-    st.subheader("📦 Sales By Time")
-
-    freq_local = st.selectbox("Frequency", ["D", "M"], key="agg_time_freq")
-    render(load_dataset("aggregated_selling", FREQ_MAP[freq_local]), key="agg_time")
+    freq = st.selectbox("Frequency", ["D", "M"], key="agg")
+    data = load_dataset("aggregated_selling", FREQ_MAP[freq])
+    flat = flatten_dict(data)
+    paginated_dataframe(flat, "agg")
 
 elif analysis_type == "Sales Trend":
-    st.subheader("📈 Sales Trend")
-
-    freq_local = st.selectbox("Frequency", ["D", "M"], key="trend_freq")
-    render(load_dataset("trend", FREQ_MAP[freq_local]), key="trend")
+    freq = st.selectbox("Frequency", ["D", "M"], key="trend")
+    data = load_dataset("trend", FREQ_MAP[freq])
+    flat = flatten_dict(data)
+    paginated_dataframe(flat, "trend")
 
 elif analysis_type == "Product Contribution":
-    st.subheader("📊 Product Contribution")
-    render(load_single_file("contribution", "product_contribution.csv"), key="contrib")
+    data = load_single_file("contribution", "product_contribution.csv")
+
+    if isinstance(data, pd.DataFrame):
+
+        df_contrib = data.copy()
+
+        for col in df_contrib.columns:
+            if pd.api.types.is_numeric_dtype(df_contrib[col]):
+
+                max_val = df_contrib[col].max()
+
+                if max_val <= 1:
+                    df_contrib[col] = (df_contrib[col] * 100).round(2).astype(str) + "%"
+
+                elif max_val <= 100:
+                    df_contrib[col] = df_contrib[col].round(2).astype(str) + "%"
+
+        paginated_dataframe(df_contrib, "contrib")
 
 elif analysis_type == "Sales Period Detection":
-    st.subheader("⚡ Sales Regimes")
-
-    freq_local = st.selectbox("Frequency", ["D", "M"], key="period_freq")
-    render(load_dataset("periods", FREQ_MAP[freq_local]), key="periods")
+    freq = st.selectbox("Frequency", ["D", "M"], key="period")
+    data = load_dataset("periods", FREQ_MAP[freq])
+    flat = flatten_dict(data)
+    paginated_dataframe(flat, "periods")
 
 elif analysis_type == "Sales Stability":
-    st.subheader("📉 Sales Stability")
-    render(load_single_file("stability", "sales_stability.csv"), key="stability")
-
-# ---------------- ITEM SUMMARY (FULL FIXED PIPELINE) ----------------
-elif analysis_type == "Item Summary":
-    st.subheader("📌 Item Summary")
-
-    item_ids = (
-        sorted(df["item_id"].dropna().unique().tolist())
-        if "item_id" in df.columns
-        else []
-    )
-
-    if not item_ids:
-        st.warning("No items available in dataset")
-    else:
-        item_id = st.selectbox(
-            "Select Item ID",
-            options=item_ids,
-            index=None,
-            placeholder="Choose an item..."
-        )
-
-        if item_id is not None:
-            try:
-                result = item_summary(df, item_id)
-
-                result = clean_dataframe(result)
-
-                if isinstance(result, pd.DataFrame):
-                    result = result.loc[:, ~result.columns.duplicated()]
-
-                paginated_dataframe(result, key="item_summary")
-
-            except Exception as e:
-                st.error(str(e))
+    data = load_single_file("stability", "sales_stability.csv")
+    paginated_dataframe(data, "stability")
