@@ -146,18 +146,16 @@ def product_contribution(df: pd.DataFrame, freq="overall"):
 def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
     df = df.copy()
     df["datetime"] = pd.to_datetime(df["datetime"])
-    
+
     if freq == "ME":
         freq = "M"
 
-    # SELL only
     sell_df = df[df["operation"] == "SELL"].copy()
     if sell_df.empty:
-        return pd.DataFrame()
+        return {}
 
     sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
 
-    # total sales per period
     period_sales = (
         sell_df.groupby("time_bucket")["quantity"]
         .sum()
@@ -170,23 +168,21 @@ def detect_sales_periods(df: pd.DataFrame, freq="M", z_threshold=1.0):
     mean = values.mean()
     std = values.std() if values.std() != 0 else 1
 
-    # z-score
     z_scores = (values - mean) / std
 
-    labels = []
-
-    for z in z_scores:
-        if z >= z_threshold:
-            labels.append("high_sales")
-        elif z <= -z_threshold:
-            labels.append("low_sales")
-        else:
-            labels.append("normal")
+    labels = [
+        "high_sales" if z >= z_threshold
+        else "low_sales" if z <= -z_threshold
+        else "normal"
+        for z in z_scores
+    ]
 
     period_sales["z_score"] = z_scores
     period_sales["regime"] = labels
 
-    return period_sales
+    return {
+        "overall": period_sales.reset_index(drop=True)
+    }
 
 # ---- Sales Stability ----
 def classify_sales_stability(df: pd.DataFrame, freq="M", threshold=0.3):
