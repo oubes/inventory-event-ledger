@@ -13,7 +13,7 @@ from output.csv_exporter import (
 
 
 def main():
-    lines = read_log(FILE_PATH)
+    lines = read_log(FILE_PATH) # type: ignore
     data = []
     for line in lines:
         try:
