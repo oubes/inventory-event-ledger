@@ -26,8 +26,12 @@ def aggregate_sales_by_time(df: pd.DataFrame, freq="M"):
     sell_df["time_bucket"] = sell_df["datetime"].dt.to_period(freq)
 
     result = (
-        sell_df.groupby(["time_bucket", "item_id"])["quantity"]
-        .sum()
+        sell_df.groupby(["time_bucket", "item_id"])
+        .agg(
+            quantity=("quantity", "sum"),
+            start_datetime=("datetime", "min"),
+            end_datetime=("datetime", "max")
+        )
         .reset_index()
     )
 
@@ -37,7 +41,7 @@ def aggregate_sales_by_time(df: pd.DataFrame, freq="M"):
 
     result = result.sort_values(["time_bucket", "rank"])
 
-    # split into separate tables per month
+    # split into separate tables per bucket
     tables = {
         str(bucket): group.drop(columns=["time_bucket"]).reset_index(drop=True)
         for bucket, group in result.groupby("time_bucket")
